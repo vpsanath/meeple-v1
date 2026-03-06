@@ -1,0 +1,166 @@
+<!-- Add Game Modal -->
+<div id="gameModal" class="modal hidden">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="modalTitle">Ajouter un jeu</h2>
+            <button class="close-btn">&times;</button>
+        </div>
+        <div class="bgg-search-wrapper">
+            <input type="text" id="bggSearchInput" placeholder="Rechercher sur BGG...">
+            <button type="button" id="bggSearchBtn" class="pill-btn black-btn">Chercher</button>
+        </div>
+        <div id="searchSuggestions" class="search-suggestions hidden"></div>
+        <div id="bggResultsContainer" class="bgg-results-list hidden"></div>
+        <div id="bggLoading" class="bgg-loading hidden">Chargement...</div>
+        <div class="modal-actions">
+            <button type="button" class="pill-btn outline-btn" id="cancelBtn">Annuler</button>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="modal hidden">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Supprimer le jeu ?</h2>
+            <button class="close-btn" id="closeDeleteBtn">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p>Es-tu sûr de vouloir retirer <strong id="deleteGameTitle"></strong> ?</p>
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="pill-btn outline-btn" id="cancelDeleteBtn">Annuler</button>
+            <button type="button" class="pill-btn cancel-btn" id="confirmDeleteBtn">Supprimer</button>
+        </div>
+    </div>
+</div>
+
+<!-- Game Detail Sliding Modal -->
+<div id="gameDetailModal" class="detail-modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="content-wrapper">
+        <div class="drag-handle-container">
+            <div class="drag-handle"></div>
+        </div>
+        <div class="detail-body">
+            <div class="detail-image-container">
+                <img id="detailGameImage" src="" alt="Jeu">
+            </div>
+            <div class="detail-info">
+                <h2 id="detailGameTitle">Titre du jeu</h2>
+                <div class="detail-stats">
+                    <div class="stat-item">
+                        <span class="stat-label">Joueurs</span>
+                        <span id="detailGamePlayers" class="stat-value">2-4</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Durée</span>
+                        <span id="detailGameDuration" class="stat-value">45 min</span>
+                    </div>
+                </div>
+                <div class="detail-actions">
+                    <button class="pill-btn cancel-btn" id="detailDeleteBtn">
+                        Supprimer de la boite
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Event Detail Sliding Modal -->
+<div id="eventDetailModal" class="detail-modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="content-wrapper">
+        <div class="drag-handle-container">
+            <div class="drag-handle"></div>
+        </div>
+        <div class="detail-body">
+            <div id="detailEventImageContainer" class="detail-image-container">
+                <img id="detailEventImage" src="" alt="Game Image">
+            </div>
+            <div class="detail-info">
+                <div class="detail-header-row">
+                    <h2 id="detailEventTitle">Titre de l'événement</h2>
+                    <span id="detailEventLevel" class="level-tag">Niveau</span>
+                </div>
+                <p id="detailEventGame" class="detail-game-name">Jeu: -</p>
+                <p id="detailEventDescription" class="detail-description"></p>
+            </div>
+            <div class="detail-stats">
+                <div class="stat-item">
+                    <span class="stat-label">📅 Date</span>
+                    <span id="detailEventDate" class="stat-value">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">⏰ Heure</span>
+                    <span id="detailEventTime" class="stat-value">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">📍 Lieu</span>
+                    <span id="detailEventLocation" class="stat-value">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">👥 Places</span>
+                    <span id="detailEventSpots" class="stat-value">-</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="joinEventBtn" class="pill-btn black-btn">Rejoindre la partie</button>
+                <button id="organizerManageBtn" class="pill-btn outline-btn hidden">Gérer l'événement</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Event Sliding Modal -->
+<div id="createEventModal" class="detail-modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="content-wrapper">
+        <div class="modal-header-simple">
+            <h2>Créer un événement</h2>
+            <button class="close-modal-btn">&times;</button>
+        </div>
+        <form id="createEventForm" class="event-form">
+            <div class="form-group">
+                <label>Jeu (depuis ta bibliothèque)</label>
+                <select id="eventGameSelect" required>
+                    <option value="">Choisir un jeu...</option>
+                </select>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Date</label>
+                    <input type="date" id="eventDate" required>
+                </div>
+                <div class="form-group">
+                    <label>Heure</label>
+                    <input type="time" id="eventTime" required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Adresse exacte</label>
+                <input type="text" id="eventAddress" placeholder="123 rue du Jeu, Paris" required>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Joueurs max</label>
+                    <input type="number" id="eventMaxPlayers" min="2" max="20" required>
+                </div>
+                <div class="form-group">
+                    <label>Niveau</label>
+                    <select id="eventLevel" required>
+                        <option value="Beginner">Débutant</option>
+                        <option value="Intermediate">Intermédiaire</option>
+                        <option value="Expert">Expert</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Description (optionnelle)</label>
+                <textarea id="eventDescription" rows="3" placeholder="Raconte-nous un peu..."></textarea>
+            </div>
+            <button type="submit" class="pill-btn black-btn">Créer la session</button>
+        </form>
+    </div>
+</div>
