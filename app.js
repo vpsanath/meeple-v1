@@ -75,22 +75,25 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log("Meeplit: DOM fully loaded and parsed");
 
     // Load Data State
-    let games = JSON.parse(localStorage.getItem('meeplit_library')) || [];
-    let events = JSON.parse(localStorage.getItem('meeplit_events')) || [];
+    let games = [];
+    let events = [];
     let gameToDeleteId = null;
 
-    // Seed Data
-    if (events.length === 0) {
-        const today = new Date().toISOString().split('T')[0];
-        events = [
-            { id: 'e1', hostId: 'u2', gameId: 'bgg-13', title: 'Soirée Catan', date: today, time: '19:00', address: '1 rue de la Paix, Paris', approxLocation: 'Paris 1er', maxPlayers: 4, participants: ['u2', 'u3'], level: 'Intermediate', description: 'Venez découvrir les colons de Catane !' },
-            { id: 'e2', hostId: 'u4', gameId: 'bgg-128882', title: '7 Wonders Expert', date: today, time: '20:30', address: '15 Rue de Rivoli, Paris', approxLocation: 'Le Marais', maxPlayers: 7, participants: ['u4'], level: 'Expert', description: 'Session intense pour joueurs confirmés.' },
-            { id: 'e3', hostId: 'u5', gameId: 'bgg-420087', title: 'Flip 7 Chill', date: today, time: '18:00', address: '5 Avenue Foch, Paris', approxLocation: 'Paris 16e', maxPlayers: 10, participants: ['u5', 'u1'], level: 'Beginner', description: 'On joue sans se prendre la tête.' },
-            { id: 'e4', hostId: 'u3', gameId: 'bgg-230802', title: 'Azul entre amis', date: today, time: '14:00', address: '10 Rue de Lappe, Paris', approxLocation: 'Bastille', maxPlayers: 4, participants: ['u3', 'u2', 'u4'], level: 'Intermediate', description: 'Un classique indémodable.' },
-            { id: 'e5', hostId: 'u2', gameId: 'bgg-352515', title: 'Trio Rapide', date: today, time: '12:30', address: '22 Boulevard Haussmann, Paris', approxLocation: 'Opéra', maxPlayers: 6, participants: ['u2'], level: 'Beginner', description: 'Une pause déj ludique.' }
-        ];
-        localStorage.setItem('meeplit_events', JSON.stringify(events));
-    }
+    const initData = async () => {
+        if (elements.eventsList) elements.eventsList.innerHTML = '<p class="empty-state">Chargement des événements...</p>';
+        if (elements.gamesGrid) elements.gamesGrid.innerHTML = '<p class="empty-state">Chargement des jeux...</p>';
+
+        const [fetchedGames, fetchedEvents] = await Promise.all([
+            dataService.getMeeples(),
+            dataService.getEvents()
+        ]);
+
+        games = fetchedGames;
+        events = fetchedEvents;
+
+        renderEvents();
+        renderGames();
+    };
 
     // DOM Elements
     const elements = {
@@ -282,16 +285,22 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.eventDetailModal.classList.add('active');
     };
 
-    const toggleJoin = (eventId) => {
+    const toggleJoin = async (eventId) => {
         const event = events.find(e => e.id === eventId);
         if (!event) return;
-        const idx = event.participants.indexOf(currentUser.id);
-        if (idx > -1) event.participants.splice(idx, 1);
-        else if (event.participants.length < event.maxPlayers) event.participants.push(currentUser.id);
 
-        localStorage.setItem('meeplit_events', JSON.stringify(events));
-        renderEvents();
-        openEventDetails(event);
+        let newParticipants = [...event.participants];
+        const idx = newParticipants.indexOf(currentUser.id);
+        if (idx > -1) newParticipants.splice(idx, 1);
+        else if (newParticipants.length < event.maxPlayers) newParticipants.push(currentUser.id);
+
+        const updatedEvent = await dataService.updateEvent(eventId, { participants: newParticipants });
+        if (updatedEvent) {
+            const evIdx = events.findIndex(e => e.id === eventId);
+            events[evIdx] = updatedEvent;
+            renderEvents();
+            openEventDetails(updatedEvent);
+        }
     };
 
     // Event Listeners
@@ -339,12 +348,15 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.createEventModal.classList.add('active');
     });
 
-    if (elements.createEventForm) elements.createEventForm.addEventListener('submit', (e) => {
+    if (elements.createEventForm) elements.createEventForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const gid = elements.eventGameSelect.value;
         const gname = elements.eventGameSelect.options[elements.eventGameSelect.selectedIndex].text;
+
+        elements.createEventForm.querySelector('button[type="submit"]').textContent = 'Création...';
+        elements.createEventForm.querySelector('button[type="submit"]').disabled = true;
+
         const newEvent = {
-            id: 'e' + Date.now(),
             hostId: currentUser.id,
             gameId: gid,
             title: 'Session ' + gname,
@@ -357,11 +369,18 @@ document.addEventListener('DOMContentLoaded', () => {
             description: document.getElementById('eventDescription').value,
             participants: [currentUser.id]
         };
-        events.unshift(newEvent);
-        localStorage.setItem('meeplit_events', JSON.stringify(events));
+
+        const savedEvent = await dataService.addEvent(newEvent);
+        if (savedEvent) {
+            events.unshift(savedEvent);
+            renderEvents();
+        }
+
+        elements.createEventForm.querySelector('button[type="submit"]').textContent = 'Créer la session';
+        elements.createEventForm.querySelector('button[type="submit"]').disabled = false;
+
         elements.createEventModal.classList.remove('active');
         setTimeout(() => elements.createEventModal.classList.add('hidden'), 400);
-        renderEvents();
     });
 
     // Search suggestions autocomplete
@@ -379,11 +398,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     const div = document.createElement('div');
                     div.className = 'suggestion-item';
                     div.textContent = g.title;
-                    div.onclick = () => {
+                    div.onclick = async () => {
                         if (!games.find(x => x.bggId === g.bggId)) {
-                            games.push({ ...g, id: 'bgg-' + g.bggId + '-' + Date.now() });
-                            localStorage.setItem('meeplit_library', JSON.stringify(games));
-                            renderGames();
+                            const newGame = { ...g };
+                            delete newGame.id; // Let DB generate UUID
+
+                            elements.searchSuggestions.innerHTML = '<div class="suggestion-item">Ajout en cours...</div>';
+                            const saved = await dataService.addMeeple(newGame);
+                            if (saved) {
+                                games.unshift(saved);
+                                renderGames();
+                            }
                         }
                         closeModal(elements.gameModal);
                     };
@@ -434,21 +459,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 div.className = 'bgg-result-item';
                 div.textContent = name;
                 div.onclick = async () => {
+                    elements.bggLoading.classList.remove('hidden');
+                    elements.bggLoading.textContent = 'Ajout en cours...';
+
                     const dRes = await fetch(`${PROXY_URL}${encodeURIComponent(BGG_THING_URL + id)}`);
                     const dText = await dRes.text();
                     const dXml = new DOMParser().parseFromString(dText, "text/xml");
                     const it = dXml.getElementsByTagName('item')[0];
                     const game = {
-                        id: 'bgg-' + id,
                         title: it.getElementsByTagName('name')[0].getAttribute('value'),
                         playerCount: it.getElementsByTagName('minplayers')[0].getAttribute('value') + '-' + it.getElementsByTagName('maxplayers')[0].getAttribute('value'),
                         playTime: it.getElementsByTagName('minplaytime')[0].getAttribute('value') + ' min',
                         imageUrl: it.getElementsByTagName('image')[0]?.textContent || '',
                         bggId: id
                     };
-                    games.push(game);
-                    localStorage.setItem('meeplit_library', JSON.stringify(games));
-                    renderGames();
+
+                    const saved = await dataService.addMeeple(game);
+                    if (saved) {
+                        games.unshift(saved);
+                        renderGames();
+                    }
+
+                    elements.bggLoading.classList.add('hidden');
+                    elements.bggLoading.textContent = 'Chargement...';
                     closeModal(elements.gameModal);
                 };
                 elements.bggResultsContainer.appendChild(div);
@@ -458,14 +491,22 @@ document.addEventListener('DOMContentLoaded', () => {
         finally { elements.bggLoading.classList.add('hidden'); }
     });
 
-    if (elements.confirmDeleteBtn) elements.confirmDeleteBtn.addEventListener('click', () => {
-        games = games.filter(g => g.id !== gameToDeleteId);
-        localStorage.setItem('meeplit_library', JSON.stringify(games));
-        renderGames();
+    if (elements.confirmDeleteBtn) elements.confirmDeleteBtn.addEventListener('click', async () => {
+        const oldText = elements.confirmDeleteBtn.textContent;
+        elements.confirmDeleteBtn.textContent = 'Suppression...';
+        elements.confirmDeleteBtn.disabled = true;
+
+        const success = await dataService.deleteMeeple(gameToDeleteId);
+        if (success) {
+            games = games.filter(g => g.id !== gameToDeleteId);
+            renderGames();
+        }
+
+        elements.confirmDeleteBtn.textContent = oldText;
+        elements.confirmDeleteBtn.disabled = false;
         closeModal(elements.deleteModal);
     });
 
     // Final Init
-    renderEvents();
-    renderGames();
+    initData();
 });

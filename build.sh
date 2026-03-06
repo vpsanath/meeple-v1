@@ -40,10 +40,24 @@ cat "$SCREENS_DIR/modals.html" >> "$OUT"
 
 cat >> "$OUT" << 'FOOTER'
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="services/supabaseClient.js"></script>
+    <script src="services/dataService.js"></script>
     <script src="app.js"></script>
 </body>
 
 </html>
 FOOTER
+
+# Setup variables
+if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+    echo "⚠️ Warning: SUPABASE_URL or SUPABASE_ANON_KEY environment variables are missing."
+else
+    # Replace placeholders in services/supabaseClient.js
+    sed -i.bak "s|INSERT_SUPABASE_URL_HERE|${SUPABASE_URL}|g" services/supabaseClient.js
+    sed -i.bak "s|INSERT_SUPABASE_ANON_KEY_HERE|${SUPABASE_ANON_KEY}|g" services/supabaseClient.js
+    rm -f services/supabaseClient.js.bak
+    echo "✅ Injected Supabase credentials into services/supabaseClient.js"
+fi
 
 echo "✅ index.html assembled from partials"
