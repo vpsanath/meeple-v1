@@ -24,6 +24,13 @@ document.addEventListener('DOMContentLoaded', () => {
     let gameToDeleteId = null;
 
     const initData = async () => {
+        if (!window.supabaseClient) {
+            alert("⚠️ Erreur : Les clés de la base de données Supabase ne sont pas configurées !\n\nSi vous testez localement, assurez-vous d'exécuter `bash build.sh` avec vos variables d'environnement SUPABASE_URL et SUPABASE_ANON_KEY avant d'ouvrir index.html.");
+            if (elements.eventsList) elements.eventsList.innerHTML = '<p class="empty-state">Erreur de connexion à la base de données.</p>';
+            if (elements.gamesGrid) elements.gamesGrid.innerHTML = '<p class="empty-state">Erreur de connexion à la base de données.</p>';
+            return;
+        }
+
         if (elements.eventsList) elements.eventsList.innerHTML = '<p class="empty-state">Chargement des événements...</p>';
         if (elements.gamesGrid) elements.gamesGrid.innerHTML = '<p class="empty-state">Chargement des jeux...</p>';
 
