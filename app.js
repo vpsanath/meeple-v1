@@ -83,9 +83,12 @@ document.addEventListener('DOMContentLoaded', () => {
         eventGameSelect: document.getElementById('eventGameSelect'),
         bggSearchInput: document.getElementById('bggSearchInput'),
         searchSuggestions: document.getElementById('searchSuggestions'),
+        addSelectedGameBtn: document.getElementById('addSelectedGameBtn'),
         modalTitle: document.getElementById('modalTitle'),
         cancelBtn: document.getElementById('cancelBtn')
     };
+
+    let selectedGameToAdd = null;
 
     // Navigation Logic
     const switchScreen = (screenId) => {
@@ -271,6 +274,11 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.bggSearchInput.value = '';
         elements.searchSuggestions.innerHTML = '';
         elements.searchSuggestions.classList.add('hidden');
+        selectedGameToAdd = null;
+        if (elements.addSelectedGameBtn) {
+            elements.addSelectedGameBtn.disabled = true;
+            elements.addSelectedGameBtn.textContent = 'Ajouter';
+        }
         elements.gameModal.classList.remove('hidden');
         void elements.gameModal.offsetWidth;
         elements.gameModal.classList.add('active');
@@ -329,31 +337,56 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.bggSearchInput.addEventListener('input', () => {
             const query = elements.bggSearchInput.value.trim().toLowerCase();
             elements.searchSuggestions.innerHTML = '';
+
+            // Reset selection if user changes input
+            selectedGameToAdd = null;
+            if (elements.addSelectedGameBtn) elements.addSelectedGameBtn.disabled = true;
+
             if (query.length < 2) { elements.searchSuggestions.classList.add('hidden'); return; }
             const matches = gamesDB.filter(g => g.title.toLowerCase().includes(query)).slice(0, 5);
+
             if (matches.length > 0) {
                 matches.forEach(g => {
                     const div = document.createElement('div');
                     div.className = 'suggestion-item';
                     div.textContent = g.title;
-                    div.onclick = async () => {
-                        if (!games.find(x => x.bggId === g.bggId)) {
-                            const newGame = { ...g };
-                            delete newGame.id; // Let DB generate UUID
-
-                            elements.searchSuggestions.innerHTML = '<div class="suggestion-item">Ajout en cours...</div>';
-                            const saved = await dataService.addMeeple(newGame);
-                            if (saved) {
-                                games.unshift(saved);
-                                renderGames();
-                            }
-                        }
-                        closeModal(elements.gameModal);
+                    div.onclick = () => {
+                        selectedGameToAdd = g;
+                        elements.bggSearchInput.value = g.title;
+                        elements.searchSuggestions.classList.add('hidden');
+                        if (elements.addSelectedGameBtn) elements.addSelectedGameBtn.disabled = false;
                     };
                     elements.searchSuggestions.appendChild(div);
                 });
                 elements.searchSuggestions.classList.remove('hidden');
-            } else elements.searchSuggestions.classList.add('hidden');
+            } else {
+                elements.searchSuggestions.innerHTML = '<div class="suggestion-item">Jeu non trouvé</div>';
+                elements.searchSuggestions.classList.remove('hidden');
+            }
+        });
+    }
+
+    if (elements.addSelectedGameBtn) {
+        elements.addSelectedGameBtn.addEventListener('click', async () => {
+            if (!selectedGameToAdd) return;
+
+            if (!games.find(x => x.bggId === selectedGameToAdd.bggId)) {
+                const newGame = { ...selectedGameToAdd };
+                delete newGame.id; // Let DB generate UUID
+
+                const oldText = elements.addSelectedGameBtn.textContent;
+                elements.addSelectedGameBtn.textContent = 'Ajout en cours...';
+                elements.addSelectedGameBtn.disabled = true;
+
+                const saved = await dataService.addMeeple(newGame);
+                if (saved) {
+                    games.unshift(saved);
+                    renderGames();
+                }
+
+                elements.addSelectedGameBtn.textContent = oldText;
+            }
+            closeModal(elements.gameModal);
         });
     }
 
