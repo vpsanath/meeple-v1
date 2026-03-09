@@ -13,10 +13,6 @@ const mockUsers = [
     { id: 'u5', name: 'Diana', avatar: 'https://i.pravatar.cc/150?u=u5' }
 ];
 
-const PROXY_URL = 'https://api.allorigins.win/raw?url=';
-const BGG_SEARCH_URL = 'https://boardgamegeek.com/xmlapi2/search?type=boardgame&query=';
-const BGG_THING_URL = 'https://boardgamegeek.com/xmlapi2/thing?stats=1&id=';
-
 // App Initialization
 document.addEventListener('DOMContentLoaded', () => {
     console.log("Meeplit: DOM fully loaded and parsed");
@@ -86,10 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
         organizerManageBtn: document.getElementById('organizerManageBtn'),
         eventGameSelect: document.getElementById('eventGameSelect'),
         bggSearchInput: document.getElementById('bggSearchInput'),
-        bggSearchBtn: document.getElementById('bggSearchBtn'),
         searchSuggestions: document.getElementById('searchSuggestions'),
-        bggResultsContainer: document.getElementById('bggResultsContainer'),
-        bggLoading: document.getElementById('bggLoading'),
         modalTitle: document.getElementById('modalTitle'),
         cancelBtn: document.getElementById('cancelBtn')
     };
@@ -276,8 +269,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (elements.addGameBtn) elements.addGameBtn.addEventListener('click', () => {
         elements.bggSearchInput.value = '';
-        elements.bggResultsContainer.innerHTML = '';
-        elements.bggResultsContainer.classList.add('hidden');
         elements.searchSuggestions.innerHTML = '';
         elements.searchSuggestions.classList.add('hidden');
         elements.gameModal.classList.remove('hidden');
@@ -335,9 +326,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Search suggestions autocomplete
     if (elements.bggSearchInput) {
-        elements.bggSearchInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') elements.bggSearchBtn.click();
-        });
         elements.bggSearchInput.addEventListener('input', () => {
             const query = elements.bggSearchInput.value.trim().toLowerCase();
             elements.searchSuggestions.innerHTML = '';
@@ -390,56 +378,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('cancelBtn')?.addEventListener('click', () => closeModal(elements.gameModal));
     document.getElementById('cancelDeleteBtn')?.addEventListener('click', () => closeModal(elements.deleteModal));
     document.getElementById('closeDeleteBtn')?.addEventListener('click', () => closeModal(elements.deleteModal));
-
-    // BGG Search Implementation (Restored & Cleaned)
-    if (elements.bggSearchBtn) elements.bggSearchBtn.addEventListener('click', async () => {
-        const query = elements.bggSearchInput.value.trim();
-        if (!query) return;
-        elements.bggLoading.classList.remove('hidden');
-        try {
-            const res = await fetch(`${PROXY_URL}${encodeURIComponent(BGG_SEARCH_URL + encodeURIComponent(query))}`);
-            const text = await res.text();
-            const xml = new DOMParser().parseFromString(text, "text/xml");
-            const items = xml.getElementsByTagName('item');
-            elements.bggResultsContainer.innerHTML = '';
-            Array.from(items).slice(0, 10).forEach(item => {
-                const id = item.getAttribute('id');
-                const name = item.getElementsByTagName('name')[0].getAttribute('value');
-                const div = document.createElement('div');
-                div.className = 'bgg-result-item';
-                div.textContent = name;
-                div.onclick = async () => {
-                    elements.bggLoading.classList.remove('hidden');
-                    elements.bggLoading.textContent = 'Ajout en cours...';
-
-                    const dRes = await fetch(`${PROXY_URL}${encodeURIComponent(BGG_THING_URL + id)}`);
-                    const dText = await dRes.text();
-                    const dXml = new DOMParser().parseFromString(dText, "text/xml");
-                    const it = dXml.getElementsByTagName('item')[0];
-                    const game = {
-                        title: it.getElementsByTagName('name')[0].getAttribute('value'),
-                        playerCount: it.getElementsByTagName('minplayers')[0].getAttribute('value') + '-' + it.getElementsByTagName('maxplayers')[0].getAttribute('value'),
-                        playTime: it.getElementsByTagName('minplaytime')[0].getAttribute('value') + ' min',
-                        imageUrl: it.getElementsByTagName('image')[0]?.textContent || '',
-                        bggId: id
-                    };
-
-                    const saved = await dataService.addMeeple(game);
-                    if (saved) {
-                        games.unshift(saved);
-                        renderGames();
-                    }
-
-                    elements.bggLoading.classList.add('hidden');
-                    elements.bggLoading.textContent = 'Chargement...';
-                    closeModal(elements.gameModal);
-                };
-                elements.bggResultsContainer.appendChild(div);
-            });
-            elements.bggResultsContainer.classList.remove('hidden');
-        } catch (err) { console.error(err); }
-        finally { elements.bggLoading.classList.add('hidden'); }
-    });
 
     if (elements.confirmDeleteBtn) elements.confirmDeleteBtn.addEventListener('click', async () => {
         const oldText = elements.confirmDeleteBtn.textContent;
